@@ -1,7 +1,5 @@
 const chessCanvas = document.getElementById('chessCanvas')
 const ctx = chessCanvas.getContext('2d')
-const forward = document.getElementById('forward')
-const back = document.getElementById('back')
 
 let PawnW = new Image(); PawnW.src = 'images/1.gif'
 let QueenW = new Image(); QueenW.src = 'images/5.gif'
@@ -57,13 +55,14 @@ const valid = 1
 const validCapture = 2
 const castling = 3
 
-let drawShah ={ 
+let drawShahKing ={ 
     x:-1, 
     y:-1 
 }
 let curX
 let curY
 let currentTeam
+let partnerTeam
 let board
 let cloneBoard
 
@@ -78,28 +77,35 @@ startGame =()=>{
     curX = -1
     curY = -1
     currentTeam = white
-    setInterval(rePaintBoard, 2)  
+    setInterval(rePaintBoard, 1)  
 }
 
-onClick =(e)=>{
+onClick =async(e)=>{
     let chessCanvasX = chessCanvas.getBoundingClientRect().left
     let chessCanvasY = chessCanvas.getBoundingClientRect().top
     let x = Math.floor((e.clientX-chessCanvasX)/tileSize)
     let y = Math.floor((e.clientY-chessCanvasY)/tileSize)
 
     if(checkValidMovement(x, y) === true){
-        if(!checkShahKing(x, y)){
+        if(!checkShahKingBeforeMove(x, y)){
             if(checkValidCapture(x, y) === true){
-                console.log('ем')
+        
             }
-            else if(checkValidСastlingKing(x, y) === true){
+            if(checkValidСastlingKing(x, y) === true){
                 castlingKing(x, y)
                 return
             }
             moveSelectedFigure(x, y)
+
+            if(checkShahKing()){
+                if(checkMateKing()){
+                    console.log('МАТ')
+                }
+            }
+            changeCurrentTeam()
         }
         else{
-            console.log('будет шах')
+            console.log('СЮДА НЕЛЬЗЯ, БУДЕТ ШАХ')
             curX = -1 
             curY = -1
         }
@@ -112,8 +118,33 @@ onClick =(e)=>{
     }
 }
 
-shahKing = (x, y)=>{
-    board.resetValidShah()
+checkMateKing =()=>{
+    console.log('проверка на мат')
+    if(checkMoveKingAfterShah(drawShahKing.x, drawShahKing.y)){
+        console.log('Есть ходы у короля')
+    }else{
+        console.log('Королю мат')
+    }
+}
+
+checkMoveKingAfterShah =(curX, curY)=>{
+    for(let i=-1; i < 2; i++){
+        for(let j=-1; j < 2; j++){
+            if(curY+j < 0 || curY+j >= boardHeight) continue
+            if(curX+i < 0 || curX+i >= boardWidth) continue
+            if(j === 0 && i === 0) continue
+            if(board.validCheckMate[curY+j][curX+i] === invalid){
+                if(board.tiles[curY+j][curX+i].teamColor === empty || board.tiles[curY+j][curX+i].teamColor === currentTeam ){
+                    return true
+                }
+            }
+        }
+    }
+    return false
+}
+
+checkShahKing = ()=>{
+    board.resetValidCheckMate()
     for(let i=0; i < boardWidth; i++){
         for(let j=0; j < boardHeight; j++){
             if(board.tiles[j][i].teamColor === currentTeam){
@@ -127,22 +158,24 @@ shahKing = (x, y)=>{
             }
         }
     }
-    
+
     for(let i=0; i < boardWidth; i++){
         for(let j=0; j < boardHeight; j++){           
-            if(board.validShah[j][i] === validCapture && board.tiles[j][i].figureType === king){
-                drawShah = {x:i, y:j}
-                console.log(board.validShah)
+            if(board.validCheckMate[j][i] === validCapture && board.tiles[j][i].figureType === king && board.tiles[j][i].teamColor !== currentTeam){
+                drawShahKing = {x:i, y:j}
+                console.log('ШАХ')
+                console.log(board.validCheckMate)
                 return true
             }
         }
     }
-    console.log(board.validShah)
+    console.log('ШАХ')
+    console.log(board.validCheckMate)
     return false
 }
 
-checkShahKing = (x, y) =>{
-    board.resetValidShah()
+checkShahKingBeforeMove = (x, y) =>{
+    board.resetСheckShahKingBeforeMove()
 
     cloneBoard = JSON.parse(JSON.stringify(board))
 
@@ -150,17 +183,16 @@ checkShahKing = (x, y) =>{
     cloneBoard.tiles[y][x].teamColor = cloneBoard.tiles[curY][curX].teamColor
     cloneBoard.tiles[curY][curX].figureType = empty
     cloneBoard.tiles[curY][curX].teamColor = empty
-
+    
     for(let i=0; i < boardWidth; i++){
         for(let j=0; j < boardHeight; j++){
             if(cloneBoard.tiles[j][i].figureType !== empty && cloneBoard.tiles[j][i].teamColor !== currentTeam){
-                let figure = cloneBoard.tiles[j][i].figureType
-                if(figure === bishop) checkPossiblePlaysBishop(i, j, true, false)
-                if(figure === pawn) checkPossiblePlaysPawn(i, j, true, false)
-                if(figure === rook) checkPossiblePlaysRook(i, j, true, false)
-                if(figure === horse) checkPossiblePlaysHorse(i, j, true, false)
-                if(figure === queen) checkPossiblePlaysQueen(i, j, true, false)
-                if(figure === king) checkPossiblePlaysKing(i, j, true, false)
+                if(cloneBoard.tiles[j][i].figureType === bishop) checkPossiblePlaysBishop(i, j, true, false)
+                if(cloneBoard.tiles[j][i].figureType === pawn) checkPossiblePlaysPawn(i, j, true, false)
+                if(cloneBoard.tiles[j][i].figureType === rook) checkPossiblePlaysRook(i, j, true, false)
+                if(cloneBoard.tiles[j][i].figureType === horse) checkPossiblePlaysHorse(i, j, true, false)
+                if(cloneBoard.tiles[j][i].figureType === queen) checkPossiblePlaysQueen(i, j, true, false)
+                if(cloneBoard.tiles[j][i].figureType === king) checkPossiblePlaysKing(i, j, true, false)
             }
         }
     }
@@ -168,14 +200,25 @@ checkShahKing = (x, y) =>{
     for(let i=0; i < boardWidth; i++){
         for(let j=0; j < boardHeight; j++){
             if(cloneBoard.tiles[j][i].figureType === king && cloneBoard.tiles[j][i].teamColor === currentTeam){
-                if(board.validShah[j][i] === validCapture){
+                if(board.checkShahKingBeforeMove[j][i] === validCapture){
+                    console.log('пре шах борд')
+                    console.log(board.checkShahKingBeforeMove)
                     return true
+                }
+                else{
+                    drawShahKing = {x:-1, y:-1}
+                    console.log('пре шах борд')
+                    console.log(board.checkShahKingBeforeMove)
+                    return false
                 }
             }
         }
     }
-    drawShah = {x:-1, y:-1}
-    return false
+}
+
+getPartnerColor = ()=>{
+    if(currentTeam === white) partnerTeam = black
+    else partnerTeam = white
 }
 
 checkPossiblePlaysPawn =(curX, curY, checkShah, shah)=>{    
@@ -190,14 +233,12 @@ checkPossiblePlaysPawn =(curX, curY, checkShah, shah)=>{
     }
     
     if(curY+direction < 0 || curY+direction > boardHeight-1) return
-    if(!checkShah && !shah){
-        if(curY === 6 || curY === 1){
-            if(board.tiles[curY+direction][curX].teamColor === empty){
-                checkPossibleMove(curX, curY+2*direction)
-            }
-        }                
-        checkPossibleMove(curX, curY+direction)
-    }
+    
+    if(curY === 6 || curY === 1){
+        if(board.tiles[curY+direction][curX].teamColor === empty) checkPossibleMove(curX, curY+2*direction, checkShah, shah)
+    }                
+    checkPossibleMove(curX, curY+direction, checkShah, shah)
+    
 
     if(curX-1 >= 0) checkPossibleCapture(curX-1, curY+direction, checkShah, shah)
     if(curX+1 !== boardWidth) checkPossibleCapture(curX+1, curY+direction, checkShah, shah)
@@ -290,24 +331,23 @@ checkPossibleCastlingKing = ()=>{
 
 checkPossiblePlay = (x, y, checkShah, shah)=>{
     if(checkPossibleCapture(x, y, checkShah, shah)) return true
-    if(!checkShah && !shah) return !checkPossibleMove(x, y)
+    if(!checkPossibleMove(x, y, checkShah, shah)) return true
     
 }
 
 checkPossibleCapture =(x, y, checkShah, shah)=>{
-    if(checkShah && cloneBoard.tiles[y][x].teamColor !== currentTeam && cloneBoard.tiles[y][x].teamColor !== empty) return true
-    if(checkShah && cloneBoard.tiles[y][x].teamColor === currentTeam){
-        board.validShah[y][x] = validCapture
+    if(checkShah && cloneBoard.tiles[y][x].teamColor === currentTeam && cloneBoard.tiles[y][x].teamColor !== empty){
+        board.checkShahKingBeforeMove[y][x] = validCapture
         return true
     }
-    if(shah && board.tiles[y][x].teamColor === currentTeam) return true
+
     if(shah && board.tiles[y][x].teamColor !== empty){
-        board.validShah[y][x] = validCapture
+        board.validCheckMate[y][x] = validCapture
         return true
     } 
+
     if(!shah && !checkShah){
         if(board.tiles[y][x].teamColor === currentTeam || board.tiles[y][x].teamColor === empty) return false
-
         board.validMoves[y][x] = validCapture
         drawCorners(x, y, highLightColor)
         return true
@@ -315,10 +355,22 @@ checkPossibleCapture =(x, y, checkShah, shah)=>{
     return false
 }
 
-checkPossibleMove =(x, y)=>{
-    if(board.tiles[y][x].teamColor !== empty) return false
-    board.validMoves[y][x] = valid
-    drawCircle(x, y, highLightColor)
+checkPossibleMove =(x, y, checkShah, shah)=>{
+    if(!checkShah && !shah){
+        if(board.tiles[y][x].teamColor !== empty ) return false
+        board.validMoves[y][x] = valid
+        drawCircle(x, y, highLightColor)
+    }
+
+    if(checkShah){
+        if(cloneBoard.tiles[y][x].teamColor !== empty ) return false
+        board.checkShahKingBeforeMove[y][x] = valid
+    }
+
+    if(shah){
+        if(board.tiles[y][x].teamColor !== empty ) return false
+        board.validCheckMate[y][x] = valid
+    } 
     return true
 } 
 
@@ -368,8 +420,6 @@ moveSelectedFigure =(x, y)=>{
     board.resetValidMoves()
     curX = -1
     curY = -1
-    shahKing(x, y)
-    changeCurrentTeam()
 }
 
 changeCurrentTeam =()=>{
@@ -416,7 +466,7 @@ checkPossiblePlays =()=>{
 rePaintBoard =()=>{
     drawBoard()
     checkPossiblePlays()
-    if(drawShah.x) drawTile(drawShah.x, drawShah.y, 'red')
+    if(drawShahKing.x >= 0) drawTile(drawShahKing.x, drawShahKing.y, 'red')
     drawFigures()
 }
 
@@ -448,26 +498,26 @@ drawCorners =(x, y, fillStyle)=>{
 
     ctx.beginPath()
     ctx.moveTo(tileSize*x, tileSize*y)
-    ctx.lineTo(tileSize*x+15, tileSize*y)
-    ctx.lineTo(tileSize*x, tileSize*y+15)
+    ctx.lineTo(tileSize*x+tileSize/4, tileSize*y)
+    ctx.lineTo(tileSize*x, tileSize*y+tileSize/4)
     ctx.fill()
 
     ctx.beginPath()
     ctx.moveTo(tileSize*(x+1), tileSize*y)
-    ctx.lineTo(tileSize*(x+1)-15, tileSize*y)
-    ctx.lineTo(tileSize*(x+1), tileSize*y+15)
+    ctx.lineTo(tileSize*(x+1)-tileSize/4, tileSize*y)
+    ctx.lineTo(tileSize*(x+1), tileSize*y+tileSize/4)
     ctx.fill()
 
     ctx.beginPath()
     ctx.moveTo(tileSize*(x+1), tileSize*(y+1))
-    ctx.lineTo(tileSize*(x+1)-15, tileSize*(y+1))
-    ctx.lineTo(tileSize*(x+1), tileSize*(y+1)-15)
+    ctx.lineTo(tileSize*(x+1)-tileSize/4, tileSize*(y+1))
+    ctx.lineTo(tileSize*(x+1), tileSize*(y+1)-tileSize/4)
     ctx.fill()
 
     ctx.beginPath()
     ctx.moveTo(tileSize*x, tileSize*(y+1))
-    ctx.lineTo(tileSize*x+15, tileSize*(y+1))
-    ctx.lineTo(tileSize*x, tileSize*(y+1)-15)
+    ctx.lineTo(tileSize*x+tileSize/4, tileSize*(y+1))
+    ctx.lineTo(tileSize*x, tileSize*(y+1)-tileSize/4)
     ctx.fill()
 }
 
@@ -552,9 +602,22 @@ class Board{
                 invalid
             ])
         }
-        this.validShah = []
+        this.validCheckMate = []
         for(let i=0; i<boardHeight; i++){
-            this.validShah.push([
+            this.validCheckMate.push([
+                invalid,
+                invalid,
+                invalid,
+                invalid,
+                invalid,
+                invalid,
+                invalid,
+                invalid
+            ])
+        }
+        this.checkShahKingBeforeMove = []
+        for(let i=0; i<boardHeight; i++){
+            this.checkShahKingBeforeMove.push([
                 invalid,
                 invalid,
                 invalid,
@@ -566,10 +629,17 @@ class Board{
             ])
         }
     }
-    resetValidShah(){
+    resetСheckShahKingBeforeMove(){
         for(let i=0; i < boardHeight; i++){
             for(let j=0; j < boardWidth; j++){
-                this.validShah[i][j] = invalid
+                this.checkShahKingBeforeMove[i][j] = invalid
+            }
+        }
+    }
+    resetValidCheckMate(){
+        for(let i=0; i < boardHeight; i++){
+            for(let j=0; j < boardWidth; j++){
+                this.validCheckMate[i][j] = invalid
             }
         }
     }
@@ -590,4 +660,7 @@ class Tile{
     }
 }
 
+// boardCheckShah=()=>{
 
+// }
+   
